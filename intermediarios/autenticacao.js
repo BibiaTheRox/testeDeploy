@@ -1,32 +1,34 @@
+
 const jwt = require("jsonwebtoken");
 const senhaJwt = require("../src/senhaJwt");
-const pool = require("../src/conexao");
+const knex = require("../src/conexao");
 
 const verificarLogin = async (req, res, next) => {
-    const {authorization} = req.headers;
+    const { authorization } = req.headers;
 
     if (!authorization) {
-        return res.status(401).json({mensagem: "Não autorizado!"})
+        return res.status(401).json({ mensagem: "Não autorizado!" });
     }
-    
+
     const token = authorization.split(" ")[1];
     try {
-        const {id} = jwt.verify(token, senhaJwt);
-        const {rows, rowCount} = await pool.query("select * from usuarios where id = $1", [id]);
+        const { id } = jwt.verify(token, senhaJwt);
+        const [usuario] = await knex("usuarios").where("id", id).select("*");
 
-        if (rowCount === 0) {
-            return res.status(401).json({mensagem: "Usuario não encontrado!"})
+        if (!usuario) {
+            return res.status(401).json({ mensagem: "Usuario não encontrado!" });
         }
 
-        const {senha, ...usuario} = rows[0];
+        const { senha, ...userData } = usuario;
 
-        req.usuario = usuario;
+        req.usuario = userData;
 
         next();
 
     } catch (error) {
-        return res.status(500).json({mensagem: "Erro interno do servidor!"})
+        console.error(error);
+        return res.status(500).json({ mensagem: "Erro interno do servidor!" });
     }
-}
+};
 
 module.exports = verificarLogin;
